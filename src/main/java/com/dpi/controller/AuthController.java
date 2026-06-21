@@ -4,7 +4,7 @@ import com.dpi.dto.LoginRequestDto;
 import com.dpi.dto.LoginResponseDto;
 import com.dpi.dto.SignupRequestDto;
 import com.dpi.dto.SignupResponseDto;
-import com.dpi.service.AuthService;
+import com.dpi.security.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
