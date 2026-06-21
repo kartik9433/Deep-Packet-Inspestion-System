@@ -9,28 +9,21 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Instant;
 
-/**
- * Parses raw PCAP packet bytes into ParsedPacket objects.
- * Java port of C++ PacketAnalyzer::PacketParser class.
- *
- * Ethernet → IPv4 → TCP/UDP header parsing chain.
- */
 @Service
 public class PacketParserService {
 
     private static final Logger log = LoggerFactory.getLogger(PacketParserService.class);
 
-    // EtherType constants (mirrors C++ EtherType namespace)
+
     private static final int ETHERTYPE_IPV4 = 0x0800;
     private static final int ETHERTYPE_IPV6 = 0x86DD;
     private static final int ETHERTYPE_ARP  = 0x0806;
 
-    // Protocol constants (mirrors C++ Protocol namespace)
+
     private static final int PROTO_ICMP = 1;
     private static final int PROTO_TCP  = 6;
     private static final int PROTO_UDP  = 17;
 
-    // TCP flag constants (mirrors C++ TCPFlags namespace)
     public static final int TCP_FIN = 0x01;
     public static final int TCP_SYN = 0x02;
     public static final int TCP_RST = 0x04;
@@ -43,12 +36,7 @@ public class PacketParserService {
     private static final int TCP_MIN_HEADER_LEN  = 20;
     private static final int UDP_HEADER_LEN      = 8;
 
-    /**
-     * Parse raw packet bytes (starting from Ethernet header) into a ParsedPacket.
-     * Returns null if parsing fails.
-     *
-     * Mirrors C++ PacketParser::parse().
-     */
+
     public ParsedPacket parse(byte[] rawData, long timestampSec, long timestampUsec) {
         if (rawData == null || rawData.length < ETHERNET_HEADER_LEN) {
             return null;
@@ -60,16 +48,15 @@ public class PacketParserService {
         ByteBuffer buf = ByteBuffer.wrap(rawData).order(ByteOrder.BIG_ENDIAN);
         int offset = 0;
 
-        // Parse Ethernet header
+
         offset = parseEthernet(buf, pkt, offset);
         if (offset < 0) return null;
 
-        // Parse IPv4 if present
+
         if (pkt.getEtherType() == ETHERTYPE_IPV4) {
             offset = parseIPv4(buf, pkt, offset);
             if (offset < 0) return null;
 
-            // Parse transport layer
             if (pkt.getProtocol() == PROTO_TCP) {
                 parseTcp(buf, pkt, offset);
             } else if (pkt.getProtocol() == PROTO_UDP) {
@@ -80,11 +67,7 @@ public class PacketParserService {
         return pkt;
     }
 
-    // -----------------------------------------------------------------------
-    // Private parsing methods
-    // -----------------------------------------------------------------------
 
-    /** Parse 14-byte Ethernet header. Returns new offset. */
     private int parseEthernet(ByteBuffer buf, ParsedPacket pkt, int offset) {
         if (buf.capacity() < offset + ETHERNET_HEADER_LEN) return -1;
 
@@ -102,7 +85,6 @@ public class PacketParserService {
         return offset + ETHERNET_HEADER_LEN;
     }
 
-    /** Parse IPv4 header (20+ bytes). Returns offset after IP header. */
     private int parseIPv4(ByteBuffer buf, ParsedPacket pkt, int offset) {
         if (buf.capacity() < offset + IPV4_MIN_HEADER_LEN) return -1;
 
@@ -131,7 +113,6 @@ public class PacketParserService {
         return offset + ihl;
     }
 
-    /** Parse TCP header. Sets payload info. */
     private void parseTcp(ByteBuffer buf, ParsedPacket pkt, int offset) {
         if (buf.capacity() < offset + TCP_MIN_HEADER_LEN) return;
 
@@ -166,7 +147,6 @@ public class PacketParserService {
         }
     }
 
-    /** Parse UDP header. */
     private void parseUdp(ByteBuffer buf, ParsedPacket pkt, int offset) {
         if (buf.capacity() < offset + UDP_HEADER_LEN) return;
 
@@ -182,9 +162,6 @@ public class PacketParserService {
         pkt.setPayloadLength(Math.max(0, length - UDP_HEADER_LEN));
     }
 
-    // -----------------------------------------------------------------------
-    // Utility conversions (mirrors C++ PacketParser static helpers)
-    // -----------------------------------------------------------------------
 
     public static String macToString(byte[] mac) {
         return String.format("%02x:%02x:%02x:%02x:%02x:%02x",
@@ -193,7 +170,6 @@ public class PacketParserService {
     }
 
     public static String ipToString(int ip) {
-        // Network byte order (big-endian) → dotted quad
         return String.format("%d.%d.%d.%d",
                 (ip >> 24) & 0xFF, (ip >> 16) & 0xFF,
                 (ip >>  8) & 0xFF,  ip        & 0xFF);

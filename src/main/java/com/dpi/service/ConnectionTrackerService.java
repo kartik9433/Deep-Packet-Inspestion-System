@@ -14,14 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * Tracks and manages network connection/flow state.
- * Java port of C++ DPI::ConnectionTracker (global, DB-backed).
- *
- * In the C++ version each FastPath thread had its own ConnectionTracker.
- * In Spring Boot we use a single service backed by JPA for simplicity,
- * with an async scheduled cleanup job replacing the C++ timeout logic.
- */
+
 @Service
 public class ConnectionTrackerService {
 
@@ -36,14 +29,7 @@ public class ConnectionTrackerService {
         this.stats = stats;
     }
 
-    // -----------------------------------------------------------------------
-    // Core flow-table operations (mirrors C++ ConnectionTracker methods)
-    // -----------------------------------------------------------------------
 
-    /**
-     * Get existing connection or create a new one.
-     * Mirrors C++ ConnectionTracker::getOrCreateConnection().
-     */
     @Transactional
     public Connection getOrCreateConnection(FiveTuple tuple) {
         return findConnection(tuple).orElseGet(() -> {
@@ -55,10 +41,7 @@ public class ConnectionTrackerService {
         });
     }
 
-    /**
-     * Find existing connection (checks both directions of the flow).
-     * Mirrors C++ ConnectionTracker::getConnection() with reverse tuple support.
-     */
+
     public Optional<Connection> findConnection(FiveTuple tuple) {
         Optional<Connection> conn = connectionRepo.findBySrcIpAndDstIpAndSrcPortAndDstPortAndProtocol(
                 tuple.getSrcIp(), tuple.getDstIp(), tuple.getSrcPort(), tuple.getDstPort(), tuple.getProtocol());
@@ -70,10 +53,7 @@ public class ConnectionTrackerService {
                 rev.getSrcIp(), rev.getDstIp(), rev.getSrcPort(), rev.getDstPort(), rev.getProtocol());
     }
 
-    /**
-     * Update connection stats with a new packet.
-     * Mirrors C++ ConnectionTracker::updateConnection().
-     */
+
     @Transactional
     public void updateConnection(Connection conn, long packetSize, boolean isOutbound) {
         if (isOutbound) {
@@ -104,10 +84,7 @@ public class ConnectionTrackerService {
         log.debug("[Tracker] Classified {} as {} (sni={})", conn.toFiveTuple(), appType, sni);
     }
 
-    /**
-     * Mark connection as blocked.
-     * Mirrors C++ ConnectionTracker::blockConnection().
-     */
+
     @Transactional
     public void blockConnection(Connection conn) {
         conn.setState(ConnectionState.BLOCKED);
@@ -115,10 +92,7 @@ public class ConnectionTrackerService {
         connectionRepo.save(conn);
     }
 
-    /**
-     * Handle TCP FIN/RST — close the connection.
-     * Mirrors C++ ConnectionTracker::closeConnection().
-     */
+
     @Transactional
     public void closeConnection(Connection conn) {
         conn.setState(ConnectionState.CLOSED);
@@ -127,9 +101,6 @@ public class ConnectionTrackerService {
         stats.decrementActiveConnections();
     }
 
-    // -----------------------------------------------------------------------
-    // Reporting
-    // -----------------------------------------------------------------------
 
     public List<Connection> getRecentConnections() {
         return connectionRepo.findTop20ByOrderByLastSeenDesc();
@@ -155,14 +126,6 @@ public class ConnectionTrackerService {
         return connectionRepo.countActiveConnections();
     }
 
-    // -----------------------------------------------------------------------
-    // Scheduled cleanup (mirrors C++ ConnectionTracker::cleanupStale())
-    // -----------------------------------------------------------------------
-
-    /**
-     * Remove stale connections every 60 seconds.
-     * Mirrors C++ timeout logic (300-second default timeout).
-     */
     @Scheduled(fixedDelay = 60_000)
     @Transactional
     public void cleanupStaleConnections() {

@@ -38,5 +38,4 @@ public class AuthUtil {
                .getPayload();
        return claims.getSubject();
    }
-
 }

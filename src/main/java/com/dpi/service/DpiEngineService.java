@@ -15,25 +15,13 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Main DPI Engine orchestrator.
- * Java port of C++ DPI::DPIEngine.
- *
- * C++ architecture:  Reader → LoadBalancers → FastPathProcessors → OutputWriter
- * Spring Boot port:  PcapReader → ThreadPool → DpiProcessor → ResultCollector
- *
- * Key design decisions:
- *  - PCAP reading and packet parsing is done inline in processFile()
- *  - Classification runs in a thread pool (maps to C++ FP threads)
- *  - Connection tracking is DB-backed via ConnectionTrackerService
- *  - Rules are checked via RuleManagerService
- */
+
 @Service
 public class DpiEngineService {
 
     private static final Logger log = LoggerFactory.getLogger(DpiEngineService.class);
 
-    // PCAP magic numbers
+
     private static final int PCAP_MAGIC_LE       = 0xD4C3B2A1;
     private static final int PCAP_MAGIC_BE       = 0xA1B2C3D4;
     private static final int PCAP_MAGIC_NS_LE    = 0x4D3CB2A1;
@@ -47,11 +35,10 @@ public class DpiEngineService {
     private final ConnectionTrackerService connTracker;
     private final DpiStats              stats;
 
-    // Processing state
     private final AtomicBoolean running    = new AtomicBoolean(false);
     private final AtomicLong    packetId   = new AtomicLong(0);
 
-    // Thread pool (maps to C++ FP thread pool)
+
     private ExecutorService threadPool;
 
     public DpiEngineService(PacketParserService parserService,
@@ -67,18 +54,7 @@ public class DpiEngineService {
         this.threadPool    = Executors.newFixedThreadPool(4);
     }
 
-    // -----------------------------------------------------------------------
-    // File processing (mirrors C++ DPIEngine::processFile())
-    // -----------------------------------------------------------------------
 
-    /**
-     * Process a PCAP file asynchronously.
-     * Reads all packets, classifies them, applies rules, writes output PCAP.
-     *
-     * @param inputPath   path to input .pcap file
-     * @param outputPath  path to write forwarded packets (.pcap)
-     * @return summary of what was processed
-     */
     @Async
     public CompletableFuture<ProcessingResult> processFile(String inputPath, String outputPath) {
         if (!running.compareAndSet(false, true)) {
@@ -123,7 +99,6 @@ public class DpiEngineService {
                     continue;
                 }
 
-                // Classify and apply rules (fast path equivalent)
                 PacketAction action = classifyAndDecide(parsed);
                 parsed.setAction(action);
                 stats.recordPacket(parsed, action);
@@ -138,7 +113,6 @@ public class DpiEngineService {
                 }
             }
 
-            // Write output PCAP
             if (outputPath != null && !outputPath.isBlank()) {
                 writePcap(outputPath, forwardedPackets, header);
             }
@@ -155,10 +129,6 @@ public class DpiEngineService {
         }
     }
 
-    /**
-     * Process raw packet bytes directly (for live / API-based injection).
-     * This is an extension beyond the C++ file-based approach.
-     */
     public PacketAction processPacket(byte[] rawData, long tsSec, long tsUsec) {
         ParsedPacket parsed = parserService.parse(rawData, tsSec, tsUsec);
         if (parsed == null) return PacketAction.DROP;
@@ -168,43 +138,27 @@ public class DpiEngineService {
         return action;
     }
 
-    // -----------------------------------------------------------------------
-    // Core classification logic (mirrors C++ FastPath::processPacket)
-    // -----------------------------------------------------------------------
-
-    /**
-     * Classify a packet and decide what to do with it.
-     *
-     * Steps (mirrors C++ fast_path.cpp):
-     *  1. Extract five-tuple
-     *  2. Look up existing connection
-     *  3. If blocked connection → DROP
-     *  4. Extract SNI from TLS payload
-     *  5. Classify app type from SNI
-     *  6. Check rules → FORWARD or DROP
-     *  7. Update connection state
-     */
     private PacketAction classifyAndDecide(ParsedPacket pkt) {
         if (!pkt.isHasIp()) return PacketAction.FORWARD;
 
         FiveTuple tuple = pkt.toFiveTuple();
 
-        // Look up or create connection entry
+
         Connection conn = connTracker.getOrCreateConnection(tuple);
 
-        // If already blocked, continue dropping
+
         if (conn.getState() == ConnectionState.BLOCKED) {
             pkt.setAppType(conn.getAppType());
             pkt.setSni(conn.getSni());
             return PacketAction.DROP;
         }
 
-        // If already classified, re-use classification
+
         if (conn.getState() == ConnectionState.CLASSIFIED) {
             pkt.setAppType(conn.getAppType());
             pkt.setSni(conn.getSni());
         } else {
-            // Try SNI extraction from TLS payload
+
             String sni = null;
             if (pkt.getPayloadPreview() != null && pkt.isHasTcp() && pkt.getDstPort() == 443) {
                 sni = sniExtractor.extract(pkt.getPayloadPreview());
@@ -231,7 +185,6 @@ public class DpiEngineService {
             }
         }
 
-        // Update TCP state (SYN, FIN tracking)
         if (pkt.isHasTcp()) {
             int flags = pkt.getTcpFlags();
             if ((flags & PacketParserService.TCP_SYN) != 0 && !conn.isSynSeen()) {
@@ -243,7 +196,7 @@ public class DpiEngineService {
             }
         }
 
-        // Apply blocking rules (mirrors C++ RuleManager::shouldBlock)
+
         Optional<RuleManagerService.BlockReason> blockReason = ruleManager.shouldBlock(
                 pkt.getSrcIp(),
                 pkt.getDstPort(),
@@ -264,10 +217,6 @@ public class DpiEngineService {
 
         return PacketAction.FORWARD;
     }
-
-    // -----------------------------------------------------------------------
-    // PCAP I/O (mirrors C++ PcapReader and DPIEngine output writer)
-    // -----------------------------------------------------------------------
 
     private PcapGlobalHeader parsePcapGlobalHeader(byte[] data) {
         ByteBuffer buf = ByteBuffer.wrap(data);
@@ -310,20 +259,16 @@ public class DpiEngineService {
 
     private void writePcap(String outputPath, List<ParsedPacket> packets, PcapGlobalHeader header) {
         try (FileOutputStream fos = new FileOutputStream(outputPath)) {
-            // Write global header
+
             fos.write(header.rawBytes());
 
-            // Write packet records (simplified: we don't have the raw bytes anymore,
-            // so this writes a minimal record per forwarded packet for demonstration)
+
             log.info("[DPIEngine] Wrote {} packets to {}", packets.size(), outputPath);
         } catch (IOException e) {
             log.error("[DPIEngine] Failed to write output PCAP: {}", e.getMessage());
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Status / reports (mirrors C++ DPIEngine::generateReport)
-    // -----------------------------------------------------------------------
 
     public DpiStats.Snapshot getStats() {
         return stats.snapshot();
@@ -349,10 +294,6 @@ public class DpiEngineService {
                 sb.append(String.format("  %-15s : %d%n", app, count)));
         return sb.toString();
     }
-
-    // -----------------------------------------------------------------------
-    // Internal records
-    // -----------------------------------------------------------------------
 
     private record PcapGlobalHeader(int magic, short versionMajor, short versionMinor,
                                     int snapLen, int linkType, boolean swapBytes, byte[] rawBytes) {}

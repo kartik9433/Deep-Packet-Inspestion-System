@@ -13,13 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Manages DPI blocking rules (IP, App, Domain, Port).
- * Java port of C++ DPI::RuleManager.
- *
- * Thread-safe in-memory sets are kept in sync with the database.
- * Fast-path checks use the in-memory sets for performance.
- */
 @Service
 public class RuleManagerService {
 
@@ -27,7 +20,7 @@ public class RuleManagerService {
 
     private final BlockingRuleRepository ruleRepo;
 
-    // In-memory sets for fast packet-path checks (mirrors C++ RuleManager private fields)
+
     private final Set<String>  blockedIps      = ConcurrentHashMap.newKeySet();
     private final Set<AppType> blockedApps     = ConcurrentHashMap.newKeySet();
     private final Set<String>  blockedDomains  = ConcurrentHashMap.newKeySet();
@@ -37,7 +30,6 @@ public class RuleManagerService {
         this.ruleRepo = ruleRepo;
     }
 
-    /** Load active rules from DB into memory on startup. */
     @PostConstruct
     public void loadFromDatabase() {
         List<BlockingRule> active = ruleRepo.findByActive(true);
@@ -46,10 +38,6 @@ public class RuleManagerService {
         }
         log.info("[RuleManager] Loaded {} rules from database", active.size());
     }
-
-    // -----------------------------------------------------------------------
-    // IP Blocking (mirrors C++ RuleManager::blockIP / unblockIP)
-    // -----------------------------------------------------------------------
 
     @Transactional
     public void blockIp(String ip) {
@@ -72,10 +60,6 @@ public class RuleManagerService {
     public List<String> getBlockedIps() {
         return new ArrayList<>(blockedIps);
     }
-
-    // -----------------------------------------------------------------------
-    // Application Blocking (mirrors C++ RuleManager::blockApp / unblockApp)
-    // -----------------------------------------------------------------------
 
     @Transactional
     public void blockApp(AppType app) {
@@ -108,9 +92,6 @@ public class RuleManagerService {
         return new ArrayList<>(blockedApps);
     }
 
-    // -----------------------------------------------------------------------
-    // Domain Blocking (mirrors C++ RuleManager::blockDomain / isDomainBlocked)
-    // -----------------------------------------------------------------------
 
     @Transactional
     public void blockDomain(String domain) {
@@ -126,10 +107,7 @@ public class RuleManagerService {
         log.info("[RuleManager] Unblocked domain: {}", domain);
     }
 
-    /**
-     * Check if domain is blocked. Supports wildcard prefix (*.example.com).
-     * Mirrors C++ RuleManager::isDomainBlocked() with wildcard matching.
-     */
+
     public boolean isDomainBlocked(String domain) {
         if (domain == null) return false;
         String lower = domain.toLowerCase();
@@ -142,10 +120,6 @@ public class RuleManagerService {
     public List<String> getBlockedDomains() {
         return new ArrayList<>(blockedDomains);
     }
-
-    // -----------------------------------------------------------------------
-    // Port Blocking (mirrors C++ RuleManager::blockPort)
-    // -----------------------------------------------------------------------
 
     @Transactional
     public void blockPort(int port) {
@@ -169,9 +143,6 @@ public class RuleManagerService {
         return new ArrayList<>(blockedPorts);
     }
 
-    // -----------------------------------------------------------------------
-    // Combined check (mirrors C++ RuleManager::shouldBlock)
-    // -----------------------------------------------------------------------
 
     public record BlockReason(RuleType type, String detail) {}
 
@@ -187,9 +158,6 @@ public class RuleManagerService {
         return Optional.empty();
     }
 
-    // -----------------------------------------------------------------------
-    // Rule stats
-    // -----------------------------------------------------------------------
 
     public Map<String, Object> getStats() {
         return Map.of(
@@ -200,9 +168,6 @@ public class RuleManagerService {
         );
     }
 
-    // -----------------------------------------------------------------------
-    // Private helpers
-    // -----------------------------------------------------------------------
 
     private void persistRule(RuleType type, String value) {
         ruleRepo.findByRuleTypeAndValue(type, value).ifPresentOrElse(
@@ -233,10 +198,7 @@ public class RuleManagerService {
         }
     }
 
-    /**
-     * Wildcard domain matching. Supports patterns like *.facebook.com.
-     * Mirrors C++ RuleManager::domainMatchesPattern().
-     */
+
     private static boolean domainMatchesPattern(String domain, String pattern) {
         if (pattern.startsWith("*.")) {
             String suffix = pattern.substring(2);
