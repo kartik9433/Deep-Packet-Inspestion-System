@@ -1,17 +1,15 @@
-import axios from "axios";
+import API from "./axiosConfig";
 
-const API = axios.create({
-  baseURL: "http://localhost:9090",
-});
+export const uploadPcap = (formData) =>
+  API.post("/api/packets/analyze", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+export const getPacketStatus = () =>
+  API.get("/api/packets/status");
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+export const getReport = () =>
+  API.get("/api/packets/report");
 
-  return config;
-});
-
-export default API;
+export const analyzeRaw = (hexData) =>
+  API.post("/api/packets/raw", { data: hexData });

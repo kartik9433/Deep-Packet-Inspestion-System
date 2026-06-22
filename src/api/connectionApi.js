@@ -8,3 +8,6 @@ export const getConnectionStats = () =>
 
 export const getConnectionsByState = (state) =>
   API.get(`/api/connections/state/${state}`);
+
+export const getConnectionsByApp = (app) =>
+  API.get(`/api/connections/app/${app}`);
