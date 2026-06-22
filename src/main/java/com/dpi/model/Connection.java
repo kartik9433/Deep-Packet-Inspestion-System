@@ -75,7 +75,7 @@ public class Connection {
     @Column(name = "fin_seen")
     private boolean finSeen = false;
 
-    // Custom constructor
+
     public Connection(FiveTuple tuple) {
         this.srcIp    = tuple.getSrcIp();
         this.dstIp    = tuple.getDstIp();
@@ -84,7 +84,6 @@ public class Connection {
         this.protocol = tuple.getProtocol();
     }
 
-    // Custom methods — not boilerplate
     public String getProtocolName() {
         return switch (protocol) {
             case 1  -> "ICMP";

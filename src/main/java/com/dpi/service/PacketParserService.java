@@ -123,9 +123,9 @@ public class PacketParserService {
         long ackNum = buf.getInt() & 0xFFFFFFFFL;
         int dataOffset = ((buf.get() & 0xFF) >> 4) * 4;
         int flags = buf.get() & 0xFF;
-        buf.getShort(); // window
-        buf.getShort(); // checksum
-        buf.getShort(); // urgent pointer
+        buf.getShort();
+        buf.getShort();
+        buf.getShort();
 
         pkt.setHasTcp(true);
         pkt.setSrcPort(srcPort);
@@ -154,7 +154,7 @@ public class PacketParserService {
         int srcPort = buf.getShort() & 0xFFFF;
         int dstPort = buf.getShort() & 0xFFFF;
         int length  = buf.getShort() & 0xFFFF;
-        buf.getShort(); // checksum
+        buf.getShort();
 
         pkt.setHasUdp(true);
         pkt.setSrcPort(srcPort);

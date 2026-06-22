@@ -34,7 +34,6 @@ public class BlockingRule {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
-    // Custom constructors — Lombok can't generate these
     public BlockingRule(RuleType ruleType, String value) {
         this.ruleType = ruleType;
         this.value = value;

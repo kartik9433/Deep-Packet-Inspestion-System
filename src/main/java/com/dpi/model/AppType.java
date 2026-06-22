@@ -30,10 +30,7 @@ public enum AppType {
     GITHUB,
     CLOUDFLARE;
 
-    /**
-     * Detect AppType from SNI hostname.
-     * Mirrors C++ sniToAppType() in types.cpp.
-     */
+
     public static AppType fromSni(String sni) {
         if (sni == null || sni.isBlank()) return UNKNOWN;
         String lower = sni.toLowerCase();

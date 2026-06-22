@@ -8,43 +8,35 @@ import java.time.Instant;
 @NoArgsConstructor
 public class ParsedPacket {
 
-    // Timestamp
     private Instant timestamp;
 
-    // Ethernet layer
     private String srcMac;
     private String dstMac;
     private int etherType;
 
-    // IP layer
     private boolean hasIp;
     private int ipVersion;
     private String srcIp;
     private String dstIp;
-    private int protocol;   // 6=TCP, 17=UDP, 1=ICMP
+    private int protocol;
     private int ttl;
 
-    // Transport layer
     private boolean hasTcp;
     private boolean hasUdp;
     private int srcPort;
     private int dstPort;
 
-    // TCP-specific
     private int tcpFlags;
     private long seqNumber;
     private long ackNumber;
 
-    // Payload
     private int payloadLength;
-    private byte[] payloadPreview;  // First 32 bytes
+    private byte[] payloadPreview;
 
-    // Classification result (set after DPI)
     private AppType appType = AppType.UNKNOWN;
     private String sni;
     private PacketAction action = PacketAction.FORWARD;
 
-    // Custom helpers — kept manually (logic, not boilerplate)
     public FiveTuple toFiveTuple() {
         return new FiveTuple(srcIp, dstIp, srcPort, dstPort, protocol);
     }

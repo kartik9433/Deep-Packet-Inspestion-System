@@ -18,7 +18,6 @@ public class FiveTuple {
         this.protocol = protocol;
     }
 
-    /** Returns the reverse tuple (for bidirectional flow matching). */
     public FiveTuple reverse() {
         return new FiveTuple(dstIp, srcIp, dstPort, srcPort, protocol);
     }

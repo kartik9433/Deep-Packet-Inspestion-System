@@ -3,7 +3,6 @@ package com.dpi.model;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-
 public class DpiStats {
 
     private final AtomicLong totalPackets     = new AtomicLong(0);

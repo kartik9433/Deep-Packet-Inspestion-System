@@ -29,7 +29,6 @@ public class ConnectionTrackerService {
         this.stats = stats;
     }
 
-
     @Transactional
     public Connection getOrCreateConnection(FiveTuple tuple) {
         return findConnection(tuple).orElseGet(() -> {
@@ -47,7 +46,6 @@ public class ConnectionTrackerService {
                 tuple.getSrcIp(), tuple.getDstIp(), tuple.getSrcPort(), tuple.getDstPort(), tuple.getProtocol());
         if (conn.isPresent()) return conn;
 
-        // Check reverse direction
         FiveTuple rev = tuple.reverse();
         return connectionRepo.findBySrcIpAndDstIpAndSrcPortAndDstPortAndProtocol(
                 rev.getSrcIp(), rev.getDstIp(), rev.getSrcPort(), rev.getDstPort(), rev.getProtocol());
@@ -71,10 +69,7 @@ public class ConnectionTrackerService {
         connectionRepo.save(conn);
     }
 
-    /**
-     * Classify a connection with detected app type and SNI.
-     * Mirrors C++ ConnectionTracker::classifyConnection().
-     */
+
     @Transactional
     public void classifyConnection(Connection conn, AppType appType, String sni) {
         conn.setAppType(appType);
