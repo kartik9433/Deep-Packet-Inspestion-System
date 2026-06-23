@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { signup } from "../api/authApi";
+import { signup } from "../api/authapi";
 import { Activity } from "lucide-react";
 
 export default function Signup() {
